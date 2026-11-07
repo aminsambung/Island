@@ -1,0 +1,113 @@
+name: Build MyWatch APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Menyiapkan Android SDK bawaan runner
+      - name: Setup Android SDK
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+
+          if [ -z "$SDK_ROOT" ]; then
+            echo "ERROR: Android SDK tidak ditemukan"
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" \
+            -type f -name sdkmanager | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager tidak ditemukan"
+            exit 1
+          fi
+
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+
+          "$SDKMANAGER" --version
+
+      # Menginstal paket Android
+      - name: Install SDK Packages
+        run: |
+          yes | "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" \
+            --licenses || true
+
+          "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" \
+            --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      # Memeriksa file proyek
+      - name: Check Project
+        run: |
+          echo "Struktur repository:"
+          ls -la
+
+          if [ ! -f "settings.gradle.kts" ] && \
+             [ ! -f "settings.gradle" ]; then
+            echo "ERROR: settings.gradle tidak ditemukan"
+            exit 1
+          fi
+
+          if [ ! -f "build.gradle.kts" ] && \
+             [ ! -f "build.gradle" ]; then
+            echo "ERROR: build.gradle utama tidak ditemukan"
+            exit 1
+          fi
+
+          if [ ! -f "app/build.gradle.kts" ] && \
+             [ ! -f "app/build.gradle" ]; then
+            echo "ERROR: app/build.gradle tidak ditemukan"
+            exit 1
+          fi
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # Membangun APK
+      - name: Build APK
+        run: |
+          gradle assembleDebug \
+            --no-daemon \
+            --stacktrace
+
+      # Memeriksa hasil build
+      - name: Check APK
+        run: |
+          find app/build/outputs/apk -name "*.apk"
+
+      # Mengunggah APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyWatch-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
