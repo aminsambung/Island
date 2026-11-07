@@ -1,137 +1,106 @@
 package com.example.musicisland
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
-import android.widget.Switch
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
-class MainActivity : AppCompatActivity() {
-
-    private lateinit var btnStart: Button
-    private lateinit var switchPill: Switch
-    private lateinit var tvStatus: TextView
-
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        btnStart = findViewById(R.id.btnStart)
-        switchPill = findViewById(R.id.switchPill)
-        tvStatus = findViewById(R.id.tvStatus)
-
-        // 1. Cek Status Izin Overlay Saat Aplikasi Dibuka
-        updateUIStatus()
-
-        // 2. Tombol untuk Meminta Izin Overlay
-        btnStart.setOnClickListener {
-            if (!Settings.canDrawOverlays(this)) {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
-                Toast.makeText(this, "Silakan izinkan, lalu kembali ke aplikasi.", Toast.LENGTH_LONG).show()
-            } else {
-                Toast.makeText(this, "Izin Overlay sudah diberikan.", Toast.LENGTH_SHORT).show()
-                updateUIStatus()
-            }
-        }
-
-        // 3. Logika Switch (Menyalakan / Mematikan Service)
-        switchPill.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                if (!Settings.canDrawOverlays(this)) {
-                    // Jika belum ada izin, kembalikan switch ke Off
-                    switchPill.isChecked = false
-                    Toast.makeText(this, "Izinkan Overlay terlebih dahulu!", Toast.LENGTH_SHORT).show()
-                } else {
-                    // Cek Izin Notifikasi (Android 13+)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                            // Minta izin notifikasi
-                            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
-                            return@setOnCheckedChangeListener
-                        }
-                    }
-                    // Jalankan Service
-                    startFloatingService()
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    MainScreen()
                 }
-            } else {
-                // Matikan Service
-                stopFloatingService()
             }
         }
     }
+}
 
-    // Fungsi Menjalankan Service
-    private fun startFloatingService() {
-        try {
-            val intent = Intent(this, FloatingService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
-            Toast.makeText(this, "Pill Diaktifkan!", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Gagal menyalakan: ${e.message}", Toast.LENGTH_LONG).show()
-            switchPill.isChecked = false
-        }
-    }
+@Composable
+fun MainScreen() {
+    val context = LocalContext.current
+    var hasOverlay by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var serviceRunning by remember { mutableStateOf(false) }
 
-    // Fungsi Mematikan Service
-    private fun stopFloatingService() {
-        val intent = Intent(this, FloatingService::class.java)
-        stopService(intent)
-        Toast.makeText(this, "Pill Dimatikan!", Toast.LENGTH_SHORT).show()
-    }
-
-    // Update Tampilan Teks Status
-    private fun updateUIStatus() {
-        if (Settings.canDrawOverlays(this)) {
-            tvStatus.text = "Status: Siap"
-            btnStart.text = "Overlay Diizinkan"
-            btnStart.isEnabled = false
-            switchPill.isEnabled = true
-        } else {
-            tvStatus.text = "Status: Butuh Izin Overlay"
-            btnStart.text = "1. Izinkan Overlay"
-            btnStart.isEnabled = true
-            switchPill.isEnabled = false
-        }
-    }
-
-    // Callback setelah pengguna merespon permintaan izin notifikasi
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 100) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Jika diizinkan, jalankan service
-                startFloatingService()
-            } else {
-                Toast.makeText(this, "Izin notifikasi ditolak. Pill mungkin tidak muncul.", Toast.LENGTH_LONG).show()
-                switchPill.isChecked = false
-            }
+        Text("MUSIC ISLAND", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Tombol Izin Overlay
+        Button(
+            onClick = {
+                if (!Settings.canDrawOverlays(context)) {
+                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(0.8f),
+            enabled = !hasOverlay
+        ) {
+            Text(if (hasOverlay) "✅ Overlay Diizinkan" else "1. Izinkan Overlay")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Tombol Aktifkan Service (Persis seperti di App Anda)
+        Button(
+            onClick = {
+                try {
+                    val intent = Intent(context, FloatingService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                    serviceRunning = true
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(0.8f),
+            enabled = hasOverlay && !serviceRunning
+        ) {
+            Text("2. Aktifkan Music Island")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        OutlinedButton(
+            onClick = {
+                context.stopService(Intent(context, FloatingService::class.java))
+                serviceRunning = false
+            },
+            modifier = Modifier.fillMaxWidth(0.8f),
+            enabled = serviceRunning
+        ) {
+            Text("Matikan Service")
         }
     }
 
-    // Cek status izin setiap kali pengguna kembali ke aplikasi
-    override fun onResume() {
-        super.onResume()
-        updateUIStatus()
+    LaunchedEffect(Unit) {
+        while (true) {
+            hasOverlay = Settings.canDrawOverlays(context)
+            delay(1000)
+        }
     }
 }
