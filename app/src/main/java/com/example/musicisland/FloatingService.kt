@@ -11,6 +11,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.Toast
 
 class FloatingService : Service() {
     private lateinit var windowManager: WindowManager
@@ -18,32 +19,49 @@ class FloatingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // 1. Buat Notifikasi (Wajib untuk Foreground Service)
         createNotificationChannel()
         startForeground(1, buildNotification())
 
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        floatingView = LayoutInflater.from(this).inflate(R.layout.view_floating, null)
+        try {
+            // 2. Siapkan WindowManager
+            windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+            floatingView = LayoutInflater.from(this).inflate(R.layout.view_floating, null)
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 100
+            // 3. Atur Parameter Overlay
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) 
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
+                else 
+                    WindowManager.LayoutParams.TYPE_PHONE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                y = 100
+            }
+
+            // 4. Hubungkan Tombol
+            val tvTitle = floatingView.findViewById<TextView>(R.id.tvTitle)
+            val btnPlay = floatingView.findViewById<ImageButton>(R.id.btnPlay)
+
+            btnPlay.setOnClickListener {
+                val title = MusicManager.playRandomSong(this)
+                tvTitle.text = title
+            }
+
+            // 5. Tampilkan ke Layar
+            windowManager.addView(floatingView, params)
+            Toast.makeText(this, "Pill berhasil ditampilkan!", Toast.LENGTH_SHORT).show()
+
+        } catch (e: Exception) {
+            // Jika gagal, tampilkan pesan error di layar HP
+            Toast.makeText(this, "Error Overlay: ${e.message}", Toast.LENGTH_LONG).show()
+            e.printStackTrace()
         }
-
-        val tvTitle = floatingView.findViewById<TextView>(R.id.tvTitle)
-        val btnPlay = floatingView.findViewById<ImageButton>(R.id.btnPlay)
-
-        btnPlay.setOnClickListener {
-            val title = MusicManager.playRandomSong(this)
-            tvTitle.text = title
-        }
-
-        windowManager.addView(floatingView, params)
     }
 
     private fun createNotificationChannel() {
@@ -54,13 +72,21 @@ class FloatingService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, "island") else Notification.Builder(this)
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) 
+            Notification.Builder(this, "island") 
+        else 
+            @Suppress("DEPRECATION") Notification.Builder(this)
+            
         return builder.setContentTitle("Music Island Aktif").setSmallIcon(android.R.drawable.ic_media_play).build()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::floatingView.isInitialized) windowManager.removeView(floatingView)
+        if (::floatingView.isInitialized) {
+            try {
+                windowManager.removeView(floatingView)
+            } catch (e: Exception) {}
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
