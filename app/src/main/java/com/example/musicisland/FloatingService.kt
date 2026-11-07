@@ -2,6 +2,7 @@ package com.example.musicisland
 
 import android.app.*
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -30,26 +31,53 @@ class FloatingService : Service() {
         super.onCreate()
         
         try {
-            // 1. Notifikasi Foreground
-            val channelId = "island"
+            // 1. Buat Notifikasi
+            val channelId = "island_channel"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(channelId, "Music Island", NotificationManager.IMPORTANCE_LOW)
-                getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+                val channel = NotificationChannel(
+                    channelId, 
+                    "Music Island", 
+                    NotificationManager.IMPORTANCE_LOW
+                )
+                val manager = getSystemService(NotificationManager::class.java)
+                manager.createNotificationChannel(channel)
             }
-            val notif = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, channelId) else @Suppress("DEPRECATION") Notification.Builder(this)
-            startForeground(1, notif.setContentTitle("Music Island Aktif").setSmallIcon(android.R.drawable.ic_media_play).build())
 
-            // 2. Siapkan Window Manager
+            val notificationBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(this, channelId)
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(this)
+            }
+
+            val notification = notificationBuilder
+                .setContentTitle("Music Island Aktif")
+                .setContentText("Memutar musik dari HP")
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .build()
+
+            // 2. Panggil startForeground dengan Tipe MEDIA_PLAYBACK (Kunci Anti-Crash Android 14)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    1, 
+                    notification, 
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(1, notification)
+            }
+
+            // 3. Siapkan Window Manager
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
             
-            // 3. Buat UI Compose
+            // 4. Buat UI Compose (Pill Melayang)
             floatingView = ComposeView(this).apply {
                 setContent {
                     PillUI()
                 }
             }
 
-            // 4. Parameter Overlay
+            // 5. Parameter Overlay
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -67,11 +95,11 @@ class FloatingService : Service() {
                 y = 100
             }
 
-            // 5. Tampilkan
+            // 6. Tampilkan Pill
             windowManager.addView(floatingView, params)
-            Toast.makeText(this, "Pill berhasil muncul!", Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
+            e.printStackTrace()
             Toast.makeText(this, "GAGAL: ${e.message}", Toast.LENGTH_LONG).show()
             stopSelf()
         }
@@ -86,7 +114,9 @@ class FloatingService : Service() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(30.dp).background(Color(0xFFFF6B9D), RoundedCornerShape(8.dp)),
+                modifier = Modifier
+                    .size(30.dp)
+                    .background(Color(0xFFFF6B9D), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text("🎵", fontSize = 16.sp)
@@ -96,12 +126,12 @@ class FloatingService : Service() {
             
             Column {
                 Text("Music Island", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text("Aktif", color = Color(0xFFAAAAAA), fontSize = 12.sp)
+                Text("Siap Memutar", color = Color(0xFFAAAAAA), fontSize = 12.sp)
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Tombol Play dummy untuk tes
+            // Tombol Play
             Box(
                 modifier = Modifier
                     .background(Color(0xFFFF6B9D), RoundedCornerShape(50))
@@ -120,7 +150,9 @@ class FloatingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         if (::floatingView.isInitialized) {
-            try { windowManager.removeView(floatingView) } catch (e: Exception) {}
+            try {
+                windowManager.removeView(floatingView)
+            } catch (e: Exception) {}
         }
     }
 
