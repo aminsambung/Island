@@ -16,25 +16,24 @@ import android.widget.Toast
 
 class FloatingService : Service() {
     private lateinit var windowManager: WindowManager
-    private lateinit var floatingView: View
+    private lateinit var floatingLayout: View
 
     override fun onCreate() {
         super.onCreate()
         
-        // 1. Notifikasi
+        // 1. Notifikasi Foreground Service
         val channelId = "island_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "Music Island", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
-        val notifBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, channelId) else Notification.Builder(this)
+        val notifBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, channelId) else @Suppress("DEPRECATION") Notification.Builder(this)
         startForeground(1, notifBuilder.setContentTitle("Music Island").setSmallIcon(android.R.drawable.ic_media_play).build())
 
-        // 2. Buat UI Tanpa XML
+        // 2. Membuat UI Overlay dari Kode (Tanpa XML)
         try {
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
             
-            // Bikin Layout Kotak Hitam
             val layout = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setBackgroundColor(Color.BLACK)
@@ -42,27 +41,26 @@ class FloatingService : Service() {
                 gravity = Gravity.CENTER_VERTICAL
             }
 
-            // Teks
-            val text = TextView(this).apply {
+            // VARIABEL TEXT VIEW YANG BARU
+            val tvTitle = TextView(this).apply {
                 text = "Music Island (Test)"
                 setTextColor(Color.WHITE)
                 textSize = 16f
             }
 
-            // Tombol
-            val btn = Button(this).apply {
+            // TOMBOL PLAY
+            val btnPlay = Button(this).apply {
                 text = "Play"
                 setOnClickListener {
-                    Toast.makeText(this@FloatingService, "Memutar Lagu...", Toast.LENGTH_SHORT).show()
                     val title = MusicManager.playRandomSong(this@FloatingService)
-                    text = title // Update teks (Ganti 'text' jadi nama variabel TextView)
+                    tvTitle.text = title // <--- INI SUDAH DIPERBAIKI
                 }
             }
 
-            layout.addView(text)
-            layout.addView(btn)
+            layout.addView(tvTitle)
+            layout.addView(btnPlay)
 
-            // 3. Parameter Overlay
+            // Parameter Overlay
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -80,8 +78,9 @@ class FloatingService : Service() {
                 y = 100
             }
 
-            // 4. Tampilkan!
-            windowManager.addView(layout, params)
+            floatingLayout = layout
+            windowManager.addView(floatingLayout, params)
+            
             Toast.makeText(this, "BERHASIL TAMPILKAN PILL!", Toast.LENGTH_LONG).show()
 
         } catch (e: Exception) {
@@ -91,8 +90,8 @@ class FloatingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::floatingView.isInitialized) {
-            try { windowManager.removeView(floatingView) } catch (e: Exception) {}
+        if (::floatingLayout.isInitialized) {
+            try { windowManager.removeView(floatingLayout) } catch (e: Exception) {}
         }
     }
 
