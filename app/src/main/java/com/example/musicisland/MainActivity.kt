@@ -20,12 +20,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity() { // <-- WAJIB ComponentActivity untuk Compose
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
+        setContent { // <-- INI BENAR (bukan setContentView)
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color(0xFF0F0F1E) // Latar belakang gelap
+                ) {
                     MainScreen()
                 }
             }
@@ -40,18 +43,25 @@ fun MainScreen() {
     var serviceRunning by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("MUSIC ISLAND", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Tombol Izin Overlay
+        // 1. Tombol Izin Overlay
         Button(
             onClick = {
                 if (!Settings.canDrawOverlays(context)) {
-                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
+                    context.startActivity(
+                        Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                    )
                 }
             },
             modifier = Modifier.fillMaxWidth(0.8f),
@@ -62,7 +72,7 @@ fun MainScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Tombol Aktifkan Service (Persis seperti di App Anda)
+        // 2. Tombol Aktifkan Service (Meniru App Anda)
         Button(
             onClick = {
                 try {
@@ -85,6 +95,7 @@ fun MainScreen() {
         
         Spacer(modifier = Modifier.height(16.dp))
         
+        // 3. Tombol Matikan Service
         OutlinedButton(
             onClick = {
                 context.stopService(Intent(context, FloatingService::class.java))
@@ -97,6 +108,7 @@ fun MainScreen() {
         }
     }
 
+    // Timer untuk update status izin
     LaunchedEffect(Unit) {
         while (true) {
             hasOverlay = Settings.canDrawOverlays(context)
