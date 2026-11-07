@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.musicisland" // Sesuaikan jika perlu
+    namespace = "com.example.musicisland"
     compileSdk = 34
 
     defaultConfig {
@@ -30,19 +30,23 @@ android {
         jvmTarget = "17"
     }
     
-    // Karena kita tidak pakai Compose dulu untuk UI utama
+    // KUNCI UTAMA: AKTIFKAN COMPOSE
     buildFeatures {
-        compose = false 
+        compose = true 
     }
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.9.0")
-    implementation("androidx.compose.ui:ui:1.6.4")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.6.4")
-    implementation("androidx.compose.material3:material3:1.2.1")
+    
+    // KUNCI KEDUA: LIBRARY COMPOSE YANG LENGKAP
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+
     // ExoPlayer untuk musik
     implementation("androidx.media3:media3-exoplayer:1.2.0")
 }
