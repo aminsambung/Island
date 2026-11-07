@@ -30,11 +30,14 @@
             </intent-filter>
         </activity>
 
-        <!-- SERVICE DENGAN TIPE MEDIA PLAYBACK -->
         <service
-            android:name=".FloatingService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+        android:name=".FloatingService"
+        android:exported="false"
+        android:foregroundServiceType="specialUse">
+       <property
+        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+        android:value="music island overlay"/>
+        </service>
 
     </application>
 </manifest>
